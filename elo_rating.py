@@ -1,4 +1,4 @@
-gitimport pandas as pd
+import pandas as pd
 
 
 ### configs
@@ -14,9 +14,7 @@ models = {
             "worlds" : 1.5,
         },
         "mov" : False,
-    },
-
-    
+    },    
 }
 
 ### elo rating system
