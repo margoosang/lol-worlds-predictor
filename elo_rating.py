@@ -8,13 +8,9 @@ base_rating = 1500
 ### elo rating system
 def expected_score(rating_a, rating_b):
     """ Team A's probability of winning 1 game against Team B. """
-    x = 1 / (1 + 10**((rating_b - rating_a) / 400))
+    x = 1 / (1 + 10 ** ((rating_b - rating_a) / 400))
     return x
 
-# =======================================================================
-# VERSION 1: probability of winning 1 game, updates per game within serie
-# this means if Team A is currently 2-0 up on Team B, their odds will be much higher to win the 3rd game then at the start of the series
-# =======================================================================
 
 k_factor = 32
 stage_mults = {
@@ -30,8 +26,16 @@ def update_elo(rating_a, rating_b, result_a, stage, k_factor, stage_mults):
     mult = stage_mults[stage]
     eff_k = k_factor * mult
 
-    rating_change = eff_k(result_a - exp_a) # with respect to Team A
+    rating_change = eff_k * (result_a - exp_a) # with respect to Team A
     new_a = rating_a + rating_change
     new_b = rating_b - rating_change
 
     return new_a, new_b
+
+def run_elo(games):
+    """Process games chronologically and update team Elo ratings."""
+
+    ratings = {}
+    predictions = []
+
+    games = games.sort_values("date", kind = "stable")
