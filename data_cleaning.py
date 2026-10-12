@@ -11,7 +11,7 @@ df = pd.concat([df_24, df_25, df_26], ignore_index = True)
 
 df = df[
     (df["position"] == "team") &
-    (df["league"].isin(["LCK", "LPL", "LEC", "LCS", "LCP", "CBLOL", "DCup", "EWC", "KeSPA Cup", "MSI", "WLDs"])) &
+    (df["league"].isin(["LCK", "LPL", "LEC", "LCS", "LCP", "CBLOL", "DCGI", "EWC", "MSI", "WLDs"])) &
 
     ]
 
