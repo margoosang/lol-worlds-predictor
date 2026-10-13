@@ -14,10 +14,12 @@ def expected_score(rating_a, rating_b):
 
 k_factor = 32
 stage_mults = {
-    "reg_szn" : 1.0,
-    "playoffs" : 1.2,
-    "msi" : 1.4,
-    "worlds" : 1.5,
+    "reg_szn": 1.0,
+    "playoffs": 1.2,
+    "dcgi": 1.25,
+    "ewc": 1.3,
+    "msi": 1.4,
+    "worlds": 1.5,
     } 
 
 def update_elo(rating_a, rating_b, result_a, stage, k_factor, stage_mults):
