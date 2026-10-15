@@ -4,22 +4,30 @@ import pandas as pd
 data_folder = Path(__file__).resolve().parent
 games = pd.read_csv(data_folder / "cleaned_data.csv")
 
-base_rating = 1500
-k_factor = 32
+base_rating = 1500 # every team starts at this elo when initialised
+blue_side_adv = 20 # accounting for blue side systematic advantage
+off_szn_retention = 0.8  # accounting for roster changes and lack of practice in the off-season
+k_factor = 24
 stage_mults = {
     "reg_szn": 1.0,
-    "playoffs": 1.2,
-    "dcgi": 1.25,
-    "ewc": 1.3,
-    "msi": 1.4,
-    "worlds": 1.5,
+    "playoffs": 1.1,
+    "dcgi": 1.2,
+    "ewc": 1.2,
+    "msi": 1.25,
+    "worlds": 1.3,
     } 
 
 def expected_score(rating_a, rating_b):
     """Team A's probability of winning the game against Team B."""
 
-    x = 1 / (1 + 10 ** ((rating_b - rating_a) / 400))
+    x = 1 / (1 + 10 ** ((rating_b - rating_a - blue_side_adv) / 400))
     return x
+
+def off_szn_regression(ratings, retention):
+    """Regress existing team ratings toward the base rating."""
+
+    for team in ratings:
+        ratings[team] = (base_rating + retention * (ratings[team] - base_rating))
 
 def update_elo(rating_a, rating_b, result_a, stage, k_factor, stage_mults):
     """Update ELOs of both teams after 1 game. result_a = 1 if Team A won, 0 if Team A lost."""
@@ -39,11 +47,18 @@ def run_elo(games):
 
     ratings = {}
     predictions = []
+    current_year = None
+
     for _, game in games.iterrows():
         team_a = game["team_a"]
         team_b = game["team_b"]
         result_a = game["result_a"]
         stage = game["stage"]
+        year = int(game["year"])
+
+        if current_year is not None and year != current_year:
+            off_szn_regression(ratings, off_szn_retention)
+        current_year = year
 
         ratings.setdefault(team_a, base_rating)
         ratings.setdefault(team_b, base_rating)
