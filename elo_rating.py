@@ -5,7 +5,6 @@ data_folder = Path(__file__).resolve().parent
 games = pd.read_csv(data_folder / "cleaned_data.csv")
 
 base_rating = 1500 # every team starts at this elo when initialised
-blue_side_adv = 20 # accounting for blue side systematic advantage
 off_szn_retention = 0.8  # accounting for roster changes and lack of practice in the off-season
 k_factor = 24
 stage_mults = {
@@ -20,7 +19,7 @@ stage_mults = {
 def expected_score(rating_a, rating_b):
     """Team A's probability of winning the game against Team B."""
 
-    x = 1 / (1 + 10 ** ((rating_b - rating_a - blue_side_adv) / 400))
+    x = 1 / (1 + 10 ** ((rating_b - rating_a) / 400))
     return x
 
 def off_szn_regression(ratings, retention):
@@ -109,8 +108,63 @@ ratings_df.to_csv(data_folder / "team_ratings.csv", index=False)
 predictions_df.to_csv(data_folder / "historical_predictions.csv", index=False)
 
 
-test_df = predictions_df[pd.to_datetime(predictions_df["date"]).dt.year == 2025]
-brier = (
-    (test_df["expected_a"] - test_df["result_a"]) ** 2
-).mean()
-print(f"2025 Brier score: {brier:.4f}")
+def predict_match(team_a, team_b, ratings, best_of=5):
+    """Predict Team A's probability of winning a Bo1, Bo3 or Bo5."""
+
+    rating_a = ratings[team_a]
+    rating_b = ratings[team_b]
+
+    p = expected_score(rating_a, rating_b)
+
+    if best_of == 1:
+        return p
+
+    elif best_of == 3:
+        return 3 * p**2 - 2 * p**3
+
+    elif best_of == 5:
+        return 10 * p**3 * (1-p)**2 + 5 * p**4 * (1-p) + p**5
+
+    else:
+        raise ValueError("best_of must be 1, 3 or 5")
+
+def predict_score(team_a, team_b, best_of):
+    """Return the most probable exact series score."""
+
+    p = expected_score(
+        worlds_ratings[team_a],
+        worlds_ratings[team_b]
+    )
+
+    q = 1 - p
+
+    if best_of == 1:
+        scores = {
+            (1, 0): p,
+            (0, 1): q
+        }
+
+    elif best_of == 3:
+        scores = {
+            (2, 0): p**2,
+            (2, 1): 2 * p**2 * q,
+            (0, 2): q**2,
+            (1, 2): 2 * q**2 * p
+        }
+
+    elif best_of == 5:
+        scores = {
+            (3, 0): p**3,
+            (3, 1): 3 * p**3 * q,
+            (3, 2): 6 * p**3 * q**2,
+            (0, 3): q**3,
+            (1, 3): 3 * q**3 * p,
+            (2, 3): 6 * q**3 * p**2
+        }
+
+    else:
+        raise ValueError("Invalid match format")
+
+    predicted_score = max(scores, key=scores.get)
+
+    return predicted_score, scores[predicted_score]
