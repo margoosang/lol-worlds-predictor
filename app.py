@@ -120,7 +120,7 @@ h1, h2, h3 {color: #F1F5F9 !important;}
 
 hr {border-color: #28354A;}
 
-.subtitle {color: #9CAFC6; font-size: 1.05rem; margin-top: -0.6rem; margin-bottom: 0.5rem;}
+.subtitle {color: #9CAFC6; font-size: 1.05rem; margin-top: -0.6rem; margin-bottom: 2rem;}
 
 .section-label {color: #D8B76A; font-size: .8rem; font-weight: 700;
 
@@ -145,7 +145,7 @@ hr {border-color: #28354A;}
 """, unsafe_allow_html=True)
 
 st.title("LoL Worlds 2026 Predictor")
-st.markdown('<p class="subtitle">Elo-powered match predictions for the League of Legends 2026 World Championship.<p>', unsafe_allow_html=True)
+st.markdown('<p class="subtitle">Elo-powered match predictions for the League of Legends 2026 World Championship.</p>', unsafe_allow_html=True)
 
 if missing_teams:
     st.warning("Missing Elo ratings for: " + ", ".join(missing_teams) + ". Check the team aliases in app.py.")
@@ -223,6 +223,152 @@ else:
 
 st.divider()
 
+# ==========================================
+# WORLDS KNOCKOUT BRACKET SIMULATOR
+# ==========================================
+
+import html
+import streamlit.components.v1 as components
+
+st.markdown('<p class="section-label">Worlds 2026 Knockout Bracket</p>', unsafe_allow_html=True)
+st.caption("Custom knockout simulation. Choose eight teams and select winners below; the tree updates automatically. This is not the official knockout draw.")
+
+seeded = sorted(teams, key=lambda t: worlds_ratings[t], reverse=True)[:8]
+with st.expander("Choose the eight quarterfinalists"):
+    slots = st.columns(4)
+    bracket_teams = []
+    for i in range(8):
+        with slots[i % 4]:
+            bracket_teams.append(st.selectbox(
+                f"Seed {i + 1}", teams, index=teams.index(seeded[i]),
+                format_func=acronym, key=f"seed_{i}"
+            ))
+
+def choose_winner(first, second, key, label):
+    probability = predict_match(first, second, 5)
+    favourite = first if probability >= 0.5 else second
+    return st.selectbox(
+        label, [first, second], index=0 if favourite == first else 1,
+        format_func=acronym, key=f"pick_{key}_{first}_{second}"
+    )
+
+if len(set(bracket_teams)) != 8:
+    st.warning("Choose eight different quarterfinalists.")
+else:
+    st.markdown("**Choose who advances**")
+    qf_cols = st.columns(4)
+    qf_winners = []
+    for i in range(4):
+        with qf_cols[i]:
+            qf_winners.append(choose_winner(
+                bracket_teams[2*i], bracket_teams[2*i+1], f"qf{i}", f"Quarterfinal {i+1}"
+            ))
+
+    sf_cols = st.columns(2)
+    sf_winners = []
+    for i in range(2):
+        with sf_cols[i]:
+            sf_winners.append(choose_winner(
+                qf_winners[2*i], qf_winners[2*i+1], f"sf{i}", f"Semifinal {i+1}"
+            ))
+    champion = choose_winner(sf_winners[0], sf_winners[1], "final", "Grand Final")
+
+    # Compact, responsive knockout tree. Logos are embedded in SVG so the
+    # graphic also works on Streamlit Community Cloud without external URLs.
+    def logo_svg(team, x, y, size=30):
+        url = get_logo_data_url(team)
+        if not url:
+            return ""
+        return (f'<image href="{url}" x="{x}" y="{y}" width="{size}" '
+                f'height="{size}" preserveAspectRatio="xMidYMid meet"/>')
+
+    def svg_match(x, y, first, second, winner, title, width=205):
+        prob = predict_match(first, second, 5)
+        rows = [(first, prob), (second, 1-prob)]
+        out = [f'<rect x="{x}" y="{y}" width="{width}" height="100" rx="10" '
+               'fill="#151D30" stroke="#36445A" stroke-width="1.2"/>',
+               f'<text x="{x+11}" y="{y+16}" class="match-title">{html.escape(title)}</text>']
+        for j, (team, chance) in enumerate(rows):
+            top = y + 24 + j * 36
+            selected = team == winner
+            color = "#EAC776" if selected else "#E8EDF5"
+            if selected:
+                out.append(f'<rect x="{x+5}" y="{top-2}" width="{width-10}" height="35" '
+                           'rx="5" fill="#293042"/>')
+            out.append(logo_svg(team, x+10, top+1, 29))
+            out.append(f'<text x="{x+44}" y="{top+22}" fill="{color}" '
+                       f'font-size="15" font-weight="{700 if selected else 500}">'
+                       f'{html.escape(acronym(team))}</text>')
+            out.append(f'<text x="{x+width-10}" y="{top+22}" text-anchor="end" '
+                       f'fill="{color}" font-size="12" font-weight="600">{chance:.0%}</text>')
+        return "".join(out)
+
+    # Coordinates are arranged to use the full page width without scrolling.
+    # Connector lines are drawn first, behind the match cards.
+    qx, sx, fx, cx = 12, 272, 532, 792
+    qf_y = [48, 202, 356, 510]
+    sf_y = [125, 433]
+    final_y = 279
+    card_w = 205
+    mid_q = qx + card_w + 24
+    mid_s = sx + card_w + 24
+    pieces = [
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1005 660" '
+        'role="img" aria-label="Worlds knockout bracket with logos and advancing teams" '
+        'style="display:block;width:100%;height:auto;font-family:\'Source Sans 3\',\'Source Sans Pro\',Arial,sans-serif;">',
+
+        '<style>'
+        'text{font-family:"Source Sans 3","Source Sans Pro",Arial,sans-serif;font-kerning:normal;}'
+        '.round-title{fill:#D8B76A;font-size:15px;font-weight:700;letter-spacing:.7px;text-anchor:middle;}'
+        '.match-title{fill:#9CAFC6;font-size:12px;font-weight:600;}'
+        '</style>',
+
+        '<rect width="1005" height="660" rx="12" fill="#0B1020"/>',
+
+        f'<text x="{qx+card_w/2}" y="26" class="round-title">QUARTERFINALS</text>',
+        f'<text x="{sx+card_w/2}" y="26" class="round-title">SEMIFINALS</text>',
+        f'<text x="{fx+card_w/2}" y="26" class="round-title">FINAL</text>',
+        f'<text x="{cx+199/2}" y="26" class="round-title">CHAMPION</text>',
+    ]
+
+    for i in range(4):
+        source_y = qf_y[i] + 50
+        target_y = sf_y[i // 2] + 50
+        pieces.append(f'<path d="M{qx+card_w} {source_y} H{mid_q} V{target_y} H{sx}" '
+                      'fill="none" stroke="#786746" stroke-width="2"/>')
+    for i in range(2):
+        source_y = sf_y[i] + 50
+        target_y = final_y + 50
+        pieces.append(f'<path d="M{sx+card_w} {source_y} H{mid_s} V{target_y} H{fx}" '
+                      'fill="none" stroke="#786746" stroke-width="2"/>')
+    pieces.append(f'<path d="M{fx+card_w} {final_y+50} H{cx}" '
+                  'stroke="#D8B76A" stroke-width="2"/>')
+    for i in range(4):
+        pieces.append(svg_match(qx, qf_y[i], bracket_teams[2*i],
+                                bracket_teams[2*i+1], qf_winners[i], f"QF {i+1}"))
+    for i in range(2):
+        pieces.append(svg_match(sx, sf_y[i], qf_winners[2*i],
+                                qf_winners[2*i+1], sf_winners[i], f"SF {i+1}"))
+    pieces.append(svg_match(fx, final_y, sf_winners[0], sf_winners[1], champion, "GRAND FINAL"))
+    pieces.append(f'<rect x="{cx}" y="{final_y-3}" width="199" height="108" '
+                  'rx="12" fill="#29261E" stroke="#D8B76A" stroke-width="2"/>')
+    pieces.append(logo_svg(champion, cx+12, final_y+21, 54))
+    pieces.append(f'<text x="{cx+76}" y="{final_y+51}" fill="#D8B76A" '
+                  f'font-size="24" font-weight="700">{html.escape(acronym(champion))}</text>')
+    pieces.append(f'<text x="{cx+12}" y="{final_y+85}" fill="#E8EDF5" '
+                  'font-size="12" font-weight="700">WORLD CHAMPION</text>')
+    pieces.append('</svg>')
+    svg = "".join(pieces)
+    components.html(
+        ('<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&display=swap">'
+         f'<div style="width:100%;margin:0;padding:0;overflow:hidden">{svg}</div>'),
+        height=660,
+        scrolling=False,
+    )
+    st.caption("The displayed probabilities are Bo5 estimates. Selecting winners overrides Elo favourites; the champion is your simulated outcome, not a title probability.")
+
+st.divider()
+
 st.markdown('<p class="section-label">Worlds 2026 Elo Leaderboard</p>', unsafe_allow_html=True)
 leaderboard = pd.DataFrame([
     {"Logo": get_logo_data_url(team), "Team": acronym(team), "Region": team_regions[team], "Elo Rating": rating}
@@ -248,9 +394,9 @@ st.dataframe(
 
 st.divider()
 
-with st.expander("About the Project"):
+with st.expander("About this Project"):
     st.markdown(r"""
-    
+
 This is a small side project I decided to build for two reasons.
 
 First, I play a lot of League of Legends, and with Worlds 2026 coming around, I wanted to see whether I could improve my Pick'ems predictions using statistics rather than relying entirely on my gut feeling.
@@ -259,7 +405,7 @@ Second, I stumbled across Oracle's Elixir while brainstorming ideas for my CS50P
 
 So I figured, why not combine the two?
 
-This project uses a simple Elo rating system to estimate team strength from historical match results. It's definitely not comprehensive since League matches are influenced by so many factors like region strength and team composition that Elo cannot capture, but I thought it would still be fun to see how far a simple statistical model like this could go in predicting match outcomes.
+This project uses a simple Elo rating system to estimate team strength from historical match results. It's definitely not comprehensive since League matches are influenced by so many factors that Elo cannot capture, but I thought it would still be fun to see how far a simple statistical model like this could go in predicting match outcomes.
 
 ### Elo Rating System
 
@@ -278,7 +424,9 @@ The model incorporates:
 The expected single-game win probability is:
 
 $$
-P(Team\ A\ wins) = \frac{1}{1 + 10^{(Rating_B - Rating_A)/400}}
+
+P(A) = \frac{1}{1 + 10^{(R_B-R_A)/400}}
+
 $$
 
 ### Model Limitations
@@ -287,9 +435,9 @@ This is a simple baseline model rather than a comprehensive prediction system. I
 
 Bo3 and Bo5 predictions assume independent games with constant game-level win probabilities.
 
-### Sources 
- 
-Oracle's Elixir for data, Liquipedia for logos.   
+**Predictions are statistical estimates, not guaranteed outcomes.**
+
+**Data source:** Oracle's Elixir
 
 """)
 st.markdown('<p class="footer">LoL Worlds 2026 Predictor | Built with Python and Streamlit</p>', unsafe_allow_html=True)
