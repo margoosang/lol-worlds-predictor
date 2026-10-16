@@ -352,11 +352,24 @@ else:
     pieces.append(svg_match(fx, final_y, sf_winners[0], sf_winners[1], champion, "GRAND FINAL"))
     pieces.append(f'<rect x="{cx}" y="{final_y-3}" width="199" height="108" '
                   'rx="12" fill="#29261E" stroke="#D8B76A" stroke-width="2"/>')
-    pieces.append(logo_svg(champion, cx+12, final_y+21, 54))
-    pieces.append(f'<text x="{cx+76}" y="{final_y+51}" fill="#D8B76A" '
-                f'font-size="24" font-weight="800">{html.escape(acronym(champion))}</text>')
-    pieces.append(f'<text x="{cx+12}" y="{final_y+85}" fill="#E8EDF5" '
-                'font-size="12" font-weight="700">WORLD CHAMPION</text>')
+    center_x = cx + 199 / 2
+
+    pieces.append(
+        logo_svg(champion, center_x - 25, final_y + 8, 50)
+    )
+    pieces.append(
+        f'<text x="{center_x}" y="{final_y+76}" '
+        'text-anchor="middle" fill="#D8B76A" '
+        f'font-size="20" font-weight="800">'
+        f'{html.escape(acronym(champion))}</text>'
+    )
+
+    pieces.append(
+        f'<text x="{center_x}" y="{final_y+96}" '
+        'text-anchor="middle" fill="#E8EDF5" '
+        'font-size="11" font-weight="600">'
+        'WORLD CHAMPION</text>'
+    )
     pieces.append('</svg>')
     svg = "".join(pieces)
     components.html(
