@@ -354,9 +354,9 @@ else:
                   'rx="12" fill="#29261E" stroke="#D8B76A" stroke-width="2"/>')
     pieces.append(logo_svg(champion, cx+12, final_y+21, 54))
     pieces.append(f'<text x="{cx+76}" y="{final_y+51}" fill="#D8B76A" '
-                  f'font-size="24" font-weight="700">{html.escape(acronym(champion))}</text>')
+                f'font-size="24" font-weight="800">{html.escape(acronym(champion))}</text>')
     pieces.append(f'<text x="{cx+12}" y="{final_y+85}" fill="#E8EDF5" '
-                  'font-size="12" font-weight="700">WORLD CHAMPION</text>')
+                'font-size="12" font-weight="700">WORLD CHAMPION</text>')
     pieces.append('</svg>')
     svg = "".join(pieces)
     components.html(
