@@ -132,8 +132,8 @@ def predict_score(team_a, team_b, best_of):
     """Return the most probable exact series score."""
 
     p = expected_score(
-        worlds_ratings[team_a],
-        worlds_ratings[team_b]
+        ratings[team_a],
+        ratings[team_b]
     )
 
     q = 1 - p
